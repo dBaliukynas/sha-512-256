@@ -1,12 +1,16 @@
-initial_sha_512_hash_values = [0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1, 
-           0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e217]
+# Pirminės maišos reikšmės SHA-512/256 algoritmui.
+initial_sha_512_256_hash_values = [0x022312194fc2bf72c, 0x9f555fa3c84c64c2, 0x2393b86b6f53b151,
+0x963877195940eabd, 0x96283ee2a88effe3, 0xbe5e1e2553863992, 0x2b0199fc2c85b8aa,0x0eb72ddc81c52ca2]
 
-initial_sha_512_256_hash_values = []
 
-for i in range(8):
-    initial_sha_512_256_hash_values.append(initial_sha_512_hash_values[i] ^ 0xa5a5a5a5a5a5a5a5)
-# Ši funkcija sugeneruoja prandines hash reikšmes SHA-512/256 šifravimo algortimui.
-def sha_512_256_iv_generation():
-    pass
-
-print(initial_sha_512_256_hash_values[0])
+with open('file.txt', 'rb') as file:
+    input = bytearray(file.read())
+    input_length = len(input) * 8
+    input += ((1 << 7).to_bytes(1, byteorder='little'))
+    input.extend(bytearray((896 - input_length - 8) // 8))
+    input += (input_length).to_bytes(16, byteorder='big')
+    for (i, char) in enumerate(input):
+      if ((i + 1) % 4 == 0):
+        print(format(char, '08b'))
+      else:
+        print(format(char, '08b'), end=' ')
