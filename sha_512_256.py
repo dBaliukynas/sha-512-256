@@ -103,90 +103,73 @@ class Sha512_256:
       return word & 0xFFFFFFFFFFFFFFFF
 
     def rotate_to_right(self, word, bits_to_rotate):
-      if (type(word) is int):
-        rotated_word = (word >> bits_to_rotate) | (word << 64 - bits_to_rotate)
-      else:
-        word_int = int.from_bytes(word, byteorder="big")
-        rotated_word = self.truncate_to_64_bits((
-            (word_int >> bits_to_rotate) | (word_int << 64 - bits_to_rotate)
+        return self.truncate_to_64_bits((
+            (word >> bits_to_rotate) | (word << 64 - bits_to_rotate)
         ))
-      return rotated_word
 
-    def digest(self):
-     digested_message = bytearray()
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[0]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[1]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[2]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[3]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[4]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[5]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[6]).to_bytes(8, byteorder='big'))
-     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[7]).to_bytes(8, byteorder='big'))
+    def digest(self, compressed_chunks):
+      digested_message = bytearray()
 
-     return digested_message[:32]
+      for (i, computed_chunk) in enumerate(compressed_chunks):
+        digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder='big'))
+
+      return digested_message[:32]
    
-    def compress(self):
-      working_variable_a, working_variable_b, working_variable_c, working_variable_d, \
-      working_variable_e, working_variable_f, working_variable_g, working_variable_h = self.initial_sha_512_256_hash_values
+    def compress(self, working_variables, message_schedule):
+        for i in range(80):
+            S1 = (self.rotate_to_right(working_variables[4], 14) ^ self.rotate_to_right(working_variables[4], 18) ^ self.rotate_to_right(working_variables[4], 41)) & 0xFFFFFFFFFFFFFFFF
+            ch = ((working_variables[4] & working_variables[5]) ^ ((~working_variables[4]) & working_variables[6])) & 0xFFFFFFFFFFFFFFFF
+            temp1 = (working_variables[7] + S1 + ch + self.round_constants[i] + message_schedule[i]) & 0xFFFFFFFFFFFFFFFF
+            S0 = (self.rotate_to_right(working_variables[0], 28) ^ self.rotate_to_right(working_variables[0], 34) ^ self.rotate_to_right(working_variables[0], 39)) & 0xFFFFFFFFFFFFFFFF
+            maj = ((working_variables[0] & working_variables[1]) ^ (working_variables[0] & working_variables[2]) ^ (working_variables[1] & working_variables[2])) & 0xFFFFFFFFFFFFFFFF
+            temp2 = (S0 + maj) & 0xFFFFFFFFFFFFFFFF
 
-      message_schedule = self.build_message_schedule()
+            new_a = (temp1 + temp2) & 0xFFFFFFFFFFFFFFFF
+            new_e = (working_variables[3] + temp1) & 0xFFFFFFFFFFFFFFFF
 
-      for i in range(80):
-        sum_1 = (self.rotate_to_right(working_variable_e, 14)) ^ (self.rotate_to_right(working_variable_e, 18)) ^ (self.rotate_to_right(working_variable_e, 41))
-        choice = (working_variable_e & working_variable_f) ^ ((not working_variable_e) & working_variable_g)
-        temporary_1 = working_variable_h + sum_1 + choice + self.round_constants[i] + int.from_bytes(message_schedule[i], byteorder="big")
+            working_variables[0], working_variables[1], working_variables[2], working_variables[3], working_variables[4], working_variables[5], working_variables[6], working_variables[7] = \
+            new_a, working_variables[0], working_variables[1], working_variables[2], new_e, working_variables[4], working_variables[5], working_variables[6]
 
-        sum_0 = (self.rotate_to_right(working_variable_a, 28)) ^ (self.rotate_to_right(working_variable_a, 34)) ^ (self.rotate_to_right(working_variable_a, 39))
-        majority = (working_variable_a & working_variable_b) ^ (working_variable_a & working_variable_c) ^ (working_variable_b & working_variable_c)
-        temporary_2 = sum_0 + majority
+        return working_variables[0], working_variables[1], working_variables[2], working_variables[3], working_variables[4], working_variables[5], working_variables[6], working_variables[7]
 
-        working_variable_h = working_variable_g
-        working_variable_g = working_variable_f
-        working_variable_f = working_variable_e
-        working_variable_e = (working_variable_d + temporary_1)
-        working_variable_d = working_variable_c
-        working_variable_c = working_variable_b
-        working_variable_b = working_variable_a
-        working_variable_a = (temporary_1 + temporary_2)
-
-      self.initial_sha_512_256_hash_values[0] += working_variable_a
-      self.initial_sha_512_256_hash_values[1] += working_variable_b
-      self.initial_sha_512_256_hash_values[2] += working_variable_c
-      self.initial_sha_512_256_hash_values[3] += working_variable_d
-      self.initial_sha_512_256_hash_values[4] += working_variable_e
-      self.initial_sha_512_256_hash_values[5] += working_variable_f
-      self.initial_sha_512_256_hash_values[6] += working_variable_g
-      self.initial_sha_512_256_hash_values[7] += working_variable_h
-
-
-    def build_message_schedule(self):
+    def compute_hash(self):
         chunks = self.split_into_chunks()
+        h0, h1, h2, h3, h4, h5, h6, h7 = self.initial_sha_512_256_hash_values
 
-        message_schedule = []
+        message_schedule = [0] * 80
+        working_variables = [0] * 8
+
+        for (i, initial_hash_value) in enumerate(self.initial_sha_512_256_hash_values):
+            working_variables[i] = initial_hash_value
+
+        compressed_chunks = working_variables.copy()
 
         for chunk in chunks:
             for i in range(16):
-                message_schedule.append(chunk[8 * i : 8 * (i + 8)])
+                message_schedule[i] = (int.from_bytes(chunk[8 * i : 8 * (i + 1)], byteorder='big'))
 
             for i in range(16, 80):
-                sigma_0 = (
-                    self.rotate_to_right(message_schedule[i - 15], 1)
-                    ^ self.rotate_to_right(message_schedule[i - 15], 8)
-                    ^ (int.from_bytes(message_schedule[i - 15], byteorder="big") >> 7)
-                )
-                sigma_1 = (
-                    self.rotate_to_right(message_schedule[i - 2], 19)
-                    ^ self.rotate_to_right(message_schedule[i - 2], 61)
-                    ^ (int.from_bytes(message_schedule[i - 2], byteorder="big") >> 6)
-                )
-                message_schedule.append((self.truncate_to_64_bits(
-                    int.from_bytes(message_schedule[i - 16], byteorder='big')
-                    + sigma_0
-                    + int.from_bytes(message_schedule[i - 7], byteorder='big')
-                    + sigma_1
-                )).to_bytes(8, byteorder='big'))
+                s0 = (self.rotate_to_right(message_schedule[i-15], 1) ^ self.rotate_to_right(message_schedule[i-15], 8) ^ message_schedule[i-15] >> 7) & 0xFFFFFFFFFFFFFFFF
+                s1 = (self.rotate_to_right(message_schedule[i-2], 19) ^ self.rotate_to_right(message_schedule[i-2], 61) ^ message_schedule[i-2] >> 6) & 0xFFFFFFFFFFFFFFFF
+                message_schedule[i] = (message_schedule[i-16] + s0 + message_schedule[i-7] + s1) & 0xFFFFFFFFFFFFFFFF
 
-        return message_schedule
+
+            
+            working_variables[0], working_variables[1], working_variables[2], working_variables[3], working_variables[4], working_variables[5], working_variables[6], working_variables[7] = compressed_chunks[0], compressed_chunks[1], compressed_chunks[2] , compressed_chunks[3], compressed_chunks[4], compressed_chunks[5], compressed_chunks[6], compressed_chunks[7]
+            working_variables[0], working_variables[1], working_variables[2], working_variables[3], working_variables[4], working_variables[5], working_variables[6], working_variables[7] = self.compress(working_variables, message_schedule)
+
+            
+
+            compressed_chunks[0] = (compressed_chunks[0] + working_variables[0]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[1] = (compressed_chunks[1] + working_variables[1]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[2] = (compressed_chunks[2] + working_variables[2]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[3] = (compressed_chunks[3] + working_variables[3]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[4] = (compressed_chunks[4] + working_variables[4]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[5] = (compressed_chunks[5] + working_variables[5]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[6] = (compressed_chunks[6] + working_variables[6]) & 0xFFFFFFFFFFFFFFFF
+            compressed_chunks[7] = (compressed_chunks[7] + working_variables[7]) & 0xFFFFFFFFFFFFFFFF
+
+        return self.digest(compressed_chunks).hex()
 
     def split_into_chunks(self):
         self.message = self.pre_process()
@@ -229,8 +212,7 @@ def main():
     with open("file.txt", "rb") as file:
         input = bytearray(file.read())
         sha_512_256 = Sha512_256(input)
-        sha_512_256.compress()
-        print(sha_512_256.digest().hex())
+        print(sha_512_256.compute_hash())
 
 if __name__ == "__main__":
     main()
