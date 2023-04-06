@@ -102,12 +102,62 @@ class Sha512_256:
     def truncate_to_64_bits(self, word):
       return word & 0xFFFFFFFFFFFFFFFF
 
-    def rotr(self, word, bits_to_rotate):
+    def rotate_to_right(self, word, bits_to_rotate):
+      if (type(word) is int):
+        rotated_word = (word >> bits_to_rotate) | (word << 64 - bits_to_rotate)
+      else:
         word_int = int.from_bytes(word, byteorder="big")
         rotated_word = self.truncate_to_64_bits((
             (word_int >> bits_to_rotate) | (word_int << 64 - bits_to_rotate)
         ))
-        return rotated_word
+      return rotated_word
+
+    def digest(self):
+     digested_message = bytearray()
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[0]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[1]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[2]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[3]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[4]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[5]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[6]).to_bytes(8, byteorder='big'))
+     digested_message.extend(self.truncate_to_64_bits(self.initial_sha_512_256_hash_values[7]).to_bytes(8, byteorder='big'))
+
+     return digested_message[:32]
+   
+    def compress(self):
+      working_variable_a, working_variable_b, working_variable_c, working_variable_d, \
+      working_variable_e, working_variable_f, working_variable_g, working_variable_h = self.initial_sha_512_256_hash_values
+
+      message_schedule = self.build_message_schedule()
+
+      for i in range(80):
+        sum_1 = (self.rotate_to_right(working_variable_e, 14)) ^ (self.rotate_to_right(working_variable_e, 18)) ^ (self.rotate_to_right(working_variable_e, 41))
+        choice = (working_variable_e & working_variable_f) ^ ((not working_variable_e) & working_variable_g)
+        temporary_1 = working_variable_h + sum_1 + choice + self.round_constants[i] + int.from_bytes(message_schedule[i], byteorder="big")
+
+        sum_0 = (self.rotate_to_right(working_variable_a, 28)) ^ (self.rotate_to_right(working_variable_a, 34)) ^ (self.rotate_to_right(working_variable_a, 39))
+        majority = (working_variable_a & working_variable_b) ^ (working_variable_a & working_variable_c) ^ (working_variable_b & working_variable_c)
+        temporary_2 = sum_0 + majority
+
+        working_variable_h = working_variable_g
+        working_variable_g = working_variable_f
+        working_variable_f = working_variable_e
+        working_variable_e = (working_variable_d + temporary_1)
+        working_variable_d = working_variable_c
+        working_variable_c = working_variable_b
+        working_variable_b = working_variable_a
+        working_variable_a = (temporary_1 + temporary_2)
+
+      self.initial_sha_512_256_hash_values[0] += working_variable_a
+      self.initial_sha_512_256_hash_values[1] += working_variable_b
+      self.initial_sha_512_256_hash_values[2] += working_variable_c
+      self.initial_sha_512_256_hash_values[3] += working_variable_d
+      self.initial_sha_512_256_hash_values[4] += working_variable_e
+      self.initial_sha_512_256_hash_values[5] += working_variable_f
+      self.initial_sha_512_256_hash_values[6] += working_variable_g
+      self.initial_sha_512_256_hash_values[7] += working_variable_h
+
 
     def build_message_schedule(self):
         chunks = self.split_into_chunks()
@@ -120,23 +170,23 @@ class Sha512_256:
 
             for i in range(16, 80):
                 sigma_0 = (
-                    self.rotr(message_schedule[i - 15], 1)
-                    ^ self.rotr(message_schedule[i - 15], 8)
+                    self.rotate_to_right(message_schedule[i - 15], 1)
+                    ^ self.rotate_to_right(message_schedule[i - 15], 8)
                     ^ (int.from_bytes(message_schedule[i - 15], byteorder="big") >> 7)
                 )
                 sigma_1 = (
-                    self.rotr(message_schedule[i - 2], 19)
-                    ^ self.rotr(message_schedule[i - 2], 61)
+                    self.rotate_to_right(message_schedule[i - 2], 19)
+                    ^ self.rotate_to_right(message_schedule[i - 2], 61)
                     ^ (int.from_bytes(message_schedule[i - 2], byteorder="big") >> 6)
                 )
-                message_schedule.append(
-                    message_schedule[i - 16]
-                    + (self.truncate_to_64_bits(sigma_0)).to_bytes(8, byteorder="big")
-                    + message_schedule[i - 7]
-                    + (self.truncate_to_64_bits(sigma_1)).to_bytes(8, byteorder="big")
-                )
+                message_schedule.append((self.truncate_to_64_bits(
+                    int.from_bytes(message_schedule[i - 16], byteorder='big')
+                    + sigma_0
+                    + int.from_bytes(message_schedule[i - 7], byteorder='big')
+                    + sigma_1
+                )).to_bytes(8, byteorder='big'))
 
-        # print(message_schedule)
+        return message_schedule
 
     def split_into_chunks(self):
         self.message = self.pre_process()
@@ -179,7 +229,8 @@ def main():
     with open("file.txt", "rb") as file:
         input = bytearray(file.read())
         sha_512_256 = Sha512_256(input)
-        sha_512_256.build_message_schedule()
+        sha_512_256.compress()
+        print(sha_512_256.digest().hex())
 
 if __name__ == "__main__":
     main()
