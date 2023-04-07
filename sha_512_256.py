@@ -100,38 +100,74 @@ class Sha512_256:
         ]
 
     def truncate_to_64_bits(self, word):
-      return word & 0xFFFFFFFFFFFFFFFF
+        return word & 0xFFFFFFFFFFFFFFFF
 
     def rotate_to_right(self, word, bits_to_rotate):
-        return self.truncate_to_64_bits((
-            (word >> bits_to_rotate) | (word << 64 - bits_to_rotate)
-        ))
+        return self.truncate_to_64_bits(
+            ((word >> bits_to_rotate) | (word << 64 - bits_to_rotate))
+        )
+
+    def print_result(self, digested_message):
+        def print_pipe_symbols():
+             return print(f'|{" " * 68}|')
+
+        print(f"\n+{'-' * 68}+")
+        print_pipe_symbols()
+        print(f"| SHA512/256 Hash result:{' ' * 44}|")
+        print_pipe_symbols()
+        print("| " + digested_message.hex() + "   |")
+        print_pipe_symbols()
+        print(f"+{'_' * 68}+\n")
 
     def digest(self, compressed_chunks):
-      digested_message = bytearray()
+        digested_message = bytearray()
 
-      for i in range(len(compressed_chunks)):
-        digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder='big'))
+        for i in range(len(compressed_chunks)):
+            digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
 
-      return digested_message[:32]
-   
+        return self.print_result(digested_message[:32])
+
     def compress(self, working_variables, message_schedule):
         for i in range(80):
-            sum_1 = self.rotate_to_right(working_variables[4], 14) ^ self.rotate_to_right(working_variables[4], 18) ^ self.rotate_to_right(working_variables[4], 41)
-            choice = (working_variables[4] & working_variables[5]) ^ ((~working_variables[4]) & working_variables[6])
-            temporary_1 = working_variables[7] + sum_1 + choice + self.round_constants[i] + message_schedule[i]
+            sum_1 = (
+                self.rotate_to_right(working_variables[4], 14)
+                ^ self.rotate_to_right(working_variables[4], 18)
+                ^ self.rotate_to_right(working_variables[4], 41)
+            )
+            choice = (working_variables[4] & working_variables[5]) ^ (
+                (~working_variables[4]) & working_variables[6]
+            )
+            temporary_1 = (
+                working_variables[7]
+                + sum_1
+                + choice
+                + self.round_constants[i]
+                + message_schedule[i]
+            )
 
-            sum_0 = (self.rotate_to_right(working_variables[0], 28) ^ self.rotate_to_right(working_variables[0], 34) ^ self.rotate_to_right(working_variables[0], 39))
-            majority = ((working_variables[0] & working_variables[1]) ^ (working_variables[0] & working_variables[2]) ^ (working_variables[1] & working_variables[2]))
-            temporary_2 = (sum_0 + majority)
+            sum_0 = (
+                self.rotate_to_right(working_variables[0], 28)
+                ^ self.rotate_to_right(working_variables[0], 34)
+                ^ self.rotate_to_right(working_variables[0], 39)
+            )
+            majority = (
+                (working_variables[0] & working_variables[1])
+                ^ (working_variables[0] & working_variables[2])
+                ^ (working_variables[1] & working_variables[2])
+            )
+            temporary_2 = sum_0 + majority
 
             for i in range(len(working_variables) - 1, -1, -1):
                 working_variables[i] = working_variables[i - 1]
-                if (i == 4):
-                    working_variables[i] = self.truncate_to_64_bits(working_variables[i - 1] + temporary_1)
-                if (i == 0):
-                  working_variables[0] = self.truncate_to_64_bits(temporary_1 + temporary_2)
-                  
+                if i == 4:
+                    working_variables[i] = self.truncate_to_64_bits(
+                        working_variables[i - 1] + temporary_1
+                    )
+                if i == 0:
+                    working_variables[0] = self.truncate_to_64_bits(
+                        temporary_1 + temporary_2
+                    )
+
         return working_variables
 
     def compute_hash(self):
@@ -147,23 +183,39 @@ class Sha512_256:
 
         for chunk in chunks:
             for i in range(16):
-                message_schedule[i] = (int.from_bytes(chunk[8 * i : 8 * (i + 1)], byteorder='big'))
+                message_schedule[i] = int.from_bytes(
+                    chunk[8 * i : 8 * (i + 1)], byteorder="big"
+                )
 
             for i in range(16, 80):
-                sigma_0 = (self.rotate_to_right(message_schedule[i-15], 1) ^ self.rotate_to_right(message_schedule[i-15], 8) ^ message_schedule[i-15] >> 7)
-                sigma_1 = (self.rotate_to_right(message_schedule[i-2], 19) ^ self.rotate_to_right(message_schedule[i-2], 61) ^ message_schedule[i-2] >> 6)
-                message_schedule[i] = self.truncate_to_64_bits(message_schedule[i-16] + sigma_0 + message_schedule[i-7] + sigma_1)
-
+                sigma_0 = (
+                    self.rotate_to_right(message_schedule[i - 15], 1)
+                    ^ self.rotate_to_right(message_schedule[i - 15], 8)
+                    ^ message_schedule[i - 15] >> 7
+                )
+                sigma_1 = (
+                    self.rotate_to_right(message_schedule[i - 2], 19)
+                    ^ self.rotate_to_right(message_schedule[i - 2], 61)
+                    ^ message_schedule[i - 2] >> 6
+                )
+                message_schedule[i] = self.truncate_to_64_bits(
+                    message_schedule[i - 16]
+                    + sigma_0
+                    + message_schedule[i - 7]
+                    + sigma_1
+                )
 
             for i in range(len(working_variables)):
                 working_variables[i] = compressed_chunks[i]
 
             working_variables = self.compress(working_variables, message_schedule)
-            
-            for i in range(len(working_variables)):
-                compressed_chunks[i] = self.truncate_to_64_bits(compressed_chunks[i] + working_variables[i])
 
-        return self.digest(compressed_chunks).hex()
+            for i in range(len(working_variables)):
+                compressed_chunks[i] = self.truncate_to_64_bits(
+                    compressed_chunks[i] + working_variables[i]
+                )
+
+        return self.digest(compressed_chunks)
 
     def split_into_chunks(self):
         self.message = self.pre_process()
@@ -206,7 +258,8 @@ def main():
     with open("file.txt", "rb") as file:
         input = bytearray(file.read())
         sha_512_256 = Sha512_256(input)
-        print(sha_512_256.compute_hash())
+        sha_512_256.compute_hash()
+
 
 if __name__ == "__main__":
     main()
