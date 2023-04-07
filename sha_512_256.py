@@ -33,6 +33,12 @@ parser.add_argument(
     action="store_true",
     help="Nustatymas, kuris nurodo, ar atvaizduoti suformatuotą failo turinį bitais komandinėje eilutėje.",
 )
+parser.add_argument(
+    "--upper-case",
+    "-uc",
+    action="store_true",
+    help="Nustatymas, kuris nurodo, ar atvaizduoti ir saugoti maišos reikšmę didžiosomis raidėmis.",
+)
 
 args = parser.parse_args()
 
@@ -154,7 +160,12 @@ class Sha512_256:
         print_pipe_symbols()
         print(f"║ SHA512/256 Hash result:{' ' * 44}║")
         print_pipe_symbols()
-        print("║ " + digested_message.hex() + "   ║")
+
+        if args.upper_case:
+          print("║ " + digested_message.hex().upper() + "   ║")
+        else:
+          print("║ " + digested_message.hex() + "   ║")
+
         print_pipe_symbols()
         print(f"╚{'═' * 68}╝\n")
 
@@ -166,7 +177,10 @@ class Sha512_256:
 
         if args.output_filename:
             with open(args.output_filename, 'w') as file:
-                file.write(digested_message[:32].hex())
+                if (args.upper_case):
+                  file.write(digested_message[:32].hex().upper())
+                else:
+                  file.write(digested_message[:32].hex())
 
         if args.output_cli or args.output_filename is None:
             return self.print_result(digested_message[:32])
@@ -302,6 +316,7 @@ class Sha512_256:
 
     def read_from_file(self):
       input = bytearray()
+      
       try:
         with open(args.input_filename, "rb") as file:
           input.extend(file.read())
