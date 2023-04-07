@@ -1,3 +1,16 @@
+import argparse
+
+parser = argparse.ArgumentParser(description='Programa, sukurianti ir grąžinanti SHA512/256 maišos reikšmę.')
+
+parser.add_argument('--filename-input', '-fi', metavar='[failo pavadinimas]', type=str, required=True,
+                    help='Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas')
+parser.add_argument('--filename-output', '-fo', metavar='[failo pavadinimas]', type=str,
+                    help='Failo, kuriame bus saugoma suskaičiuota maišos reikšmė, pavadinimas')
+parser.add_argument('--return-to-cli', '-cli', action="store_true",
+                    help='Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje.')
+
+args = parser.parse_args()
+
 class Sha512_256:
     def __init__(self, input):
         self.message = input.copy()
@@ -124,8 +137,8 @@ class Sha512_256:
 
         for i in range(len(compressed_chunks)):
             digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
-
-        return self.print_result(digested_message[:32])
+        if (args.return_to_cli == True or args.filename_output is None):
+          return self.print_result(digested_message[:32])
 
     def compress(self, working_variables, message_schedule):
         for i in range(80):
@@ -255,11 +268,10 @@ class Sha512_256:
 
 
 def main():
-    with open("file.txt", "rb") as file:
+    with open(args.filename_input, "rb") as file:
         input = bytearray(file.read())
         sha_512_256 = Sha512_256(input)
         sha_512_256.compute_hash()
-
 
 if __name__ == "__main__":
     main()
