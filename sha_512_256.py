@@ -25,7 +25,7 @@ parser.add_argument(
     "--output-cli",
     "-oc",
     action="store_true",
-    help="Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje.",
+    help="Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje, kai jau yra nurodytas išvesties failas.",
 )
 parser.add_argument(
     "--print-message",
@@ -294,12 +294,12 @@ class Sha512_256:
 
     def pre_process(self):
 
-        self.message += (1 << 7).to_bytes(1, byteorder="little")
+        self.message.extend((1 << 7).to_bytes(1, byteorder="little"))
         padding_zeroes_length = (
             (self.threshold - self.message_length) % self.chunk_size // 8
         )
         self.message.extend(bytearray(padding_zeroes_length))
-        self.message += (self.message_length).to_bytes(16, byteorder="big")
+        self.message.extend((self.message_length).to_bytes(16, byteorder="big"))
 
         return self.message
 
@@ -314,6 +314,9 @@ class Sha512_256:
         print(f"\nPadded message length in bytes: {self.message_length // 8}\n")
         print(f"Amount of chunks: {chunk_count}")
 
+    def print_error_message(self, error_message):
+        print('\x1b[1;41m' + f"\n{error_message}" + '\x1b[m\n')
+
     def read_from_file(self):
       input = bytearray()
       
@@ -321,7 +324,10 @@ class Sha512_256:
         with open(args.input_filename, "rb") as file:
           input.extend(file.read())
       except FileNotFoundError:
-          print(f"\nFailas {args.input_filename} nerastas.\n")
+          self.print_error_message(f"Failas {args.input_filename} nerastas.")
+          raise SystemExit(1)
+      except IsADirectoryError:
+          self.print_error_message(f"Failas {args.input_filename} yra katalogas.")
           raise SystemExit(1)
 
       return input
