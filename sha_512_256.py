@@ -1,6 +1,6 @@
 import argparse
 
-parser = argparse.ArgumentParser(description='Programa, sukurianti ir grąžinanti SHA512/256 maišos reikšmę.')
+parser = argparse.ArgumentParser(description='Programa, suskaičiuojanti ir grąžinanti SHA512/256 maišos reikšmę.')
 
 parser.add_argument('--filename-input', '-fi', metavar='[failo pavadinimas]', type=str, required=True,
                     help='Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas')
@@ -8,6 +8,8 @@ parser.add_argument('--filename-output', '-fo', metavar='[failo pavadinimas]', t
                     help='Failo, kuriame bus saugoma suskaičiuota maišos reikšmė, pavadinimas')
 parser.add_argument('--return-to-cli', '-cli', action="store_true",
                     help='Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje.')
+parser.add_argument('--print-message', '-pm', action="store_true",
+                    help='Nustatymas, kuris nurodo, ar atvaizduoti suformatuotą failo turinį bitais komandinėje eilutėje.')
 
 args = parser.parse_args()
 
@@ -239,8 +241,8 @@ class Sha512_256:
 
         for i in range(chunk_count):
             chunks.append(self.message[128 * i : 128 * (i + 1)])
-
-        # self.print_message_in_binary(chunk_count)
+        if (args.print_message):
+          self.print_message_in_binary(chunk_count)
 
         return chunks
 
