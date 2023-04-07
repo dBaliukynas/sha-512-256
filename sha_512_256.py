@@ -109,15 +109,15 @@ class Sha512_256:
 
     def print_result(self, digested_message):
         def print_pipe_symbols():
-             return print(f'|{" " * 68}|')
+             return print(f'║{" " * 68}║')
 
-        print(f"\n+{'-' * 68}+")
+        print(f"\n╔{'═' * 68}╗")
         print_pipe_symbols()
-        print(f"| SHA512/256 Hash result:{' ' * 44}|")
+        print(f"║ SHA512/256 Hash result:{' ' * 44}║")
         print_pipe_symbols()
-        print("| " + digested_message.hex() + "   |")
+        print("║ " + digested_message.hex() + "   ║")
         print_pipe_symbols()
-        print(f"+{'_' * 68}+\n")
+        print(f"╚{'═' * 68}╝\n")
 
     def digest(self, compressed_chunks):
         digested_message = bytearray()
