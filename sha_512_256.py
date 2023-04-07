@@ -176,11 +176,18 @@ class Sha512_256:
             digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
 
         if args.output_filename:
-            with open(args.output_filename, 'w') as file:
+            try:
+              with open(args.output_filename, 'w') as file:
                 if (args.upper_case):
                   file.write(digested_message[:32].hex().upper())
                 else:
                   file.write(digested_message[:32].hex())
+            except IsADirectoryError:
+              self.print_error_message(f"Failas {args.output_filename} yra katalogas.")
+              raise SystemExit(1)
+            except PermissionError:
+              self.print_error_message(f"Nėra suteiktos privilegijos rašyti į failą {args.output_filename}.")
+              raise SystemExit(1)
 
         if args.output_cli or args.output_filename is None:
             return self.print_result(digested_message[:32])
@@ -324,11 +331,14 @@ class Sha512_256:
         with open(args.input_filename, "rb") as file:
           input.extend(file.read())
       except FileNotFoundError:
-          self.print_error_message(f"Failas {args.input_filename} nerastas.")
-          raise SystemExit(1)
+        self.print_error_message(f"Failas {args.input_filename} nerastas.")
+        raise SystemExit(1)
       except IsADirectoryError:
-          self.print_error_message(f"Failas {args.input_filename} yra katalogas.")
-          raise SystemExit(1)
+        self.print_error_message(f"Failas {args.input_filename} yra katalogas.")
+        raise SystemExit(1)
+      except PermissionError:
+        self.print_error_message(f"Nėra suteiktos privilegijos skaityti failą {args.input_filename}.")
+        raise SystemExit(1)
 
       return input
 
