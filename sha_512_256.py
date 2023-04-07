@@ -2,6 +2,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Programa, suskaičiuojanti ir grąžinanti SHA512/256 maišos reikšmę.')
 
+#Pridedami komandinės eilutės argumentai su pavadinimais ir aprašymais.
 parser.add_argument('--filename-input', '-fi', metavar='[failo pavadinimas]', type=str, required=True,
                     help='Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas')
 parser.add_argument('--filename-output', '-fo', metavar='[failo pavadinimas]', type=str,
@@ -139,7 +140,7 @@ class Sha512_256:
 
         for i in range(len(compressed_chunks)):
             digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
-        if (args.return_to_cli == True or args.filename_output is None):
+        if (args.return_to_cli or args.filename_output is None):
           return self.print_result(digested_message[:32])
 
     def compress(self, working_variables, message_schedule):
@@ -188,7 +189,6 @@ class Sha512_256:
     def compute_hash(self):
         chunks = self.split_into_chunks()
 
-        message_schedule = [0] * 80
         working_variables = [0] * 8
 
         for (i, initial_hash_value) in enumerate(self.initial_sha_512_256_hash_values):
@@ -197,28 +197,7 @@ class Sha512_256:
         compressed_chunks = working_variables.copy()
 
         for chunk in chunks:
-            for i in range(16):
-                message_schedule[i] = int.from_bytes(
-                    chunk[8 * i : 8 * (i + 1)], byteorder="big"
-                )
-
-            for i in range(16, 80):
-                sigma_0 = (
-                    self.rotate_to_right(message_schedule[i - 15], 1)
-                    ^ self.rotate_to_right(message_schedule[i - 15], 8)
-                    ^ message_schedule[i - 15] >> 7
-                )
-                sigma_1 = (
-                    self.rotate_to_right(message_schedule[i - 2], 19)
-                    ^ self.rotate_to_right(message_schedule[i - 2], 61)
-                    ^ message_schedule[i - 2] >> 6
-                )
-                message_schedule[i] = self.truncate_to_64_bits(
-                    message_schedule[i - 16]
-                    + sigma_0
-                    + message_schedule[i - 7]
-                    + sigma_1
-                )
+            message_schedule = self.build_message_schedule(chunk)
 
             for i in range(len(working_variables)):
                 working_variables[i] = compressed_chunks[i]
@@ -231,6 +210,32 @@ class Sha512_256:
                 )
 
         return self.digest(compressed_chunks)
+        
+    def build_message_schedule(self, chunk):
+        message_schedule = [0] * 80
+        for i in range(16):
+                message_schedule[i] = int.from_bytes(
+                    chunk[8 * i : 8 * (i + 1)], byteorder="big"
+                )
+
+        for i in range(16, 80):
+            sigma_0 = (
+                self.rotate_to_right(message_schedule[i - 15], 1)
+                ^ self.rotate_to_right(message_schedule[i - 15], 8)
+                ^ message_schedule[i - 15] >> 7
+            )
+            sigma_1 = (
+                self.rotate_to_right(message_schedule[i - 2], 19)
+                ^ self.rotate_to_right(message_schedule[i - 2], 61)
+                ^ message_schedule[i - 2] >> 6
+            )
+            message_schedule[i] = self.truncate_to_64_bits(
+                message_schedule[i - 16]
+                + sigma_0
+                + message_schedule[i - 7]
+                + sigma_1
+            )
+        return message_schedule
 
     def split_into_chunks(self):
         self.message = self.pre_process()
