@@ -1,22 +1,45 @@
 import argparse
 
-parser = argparse.ArgumentParser(description='Programa, suskaičiuojanti ir grąžinanti SHA512/256 maišos reikšmę.')
+#Sukuriamas argparse bibliotekos ArgumentParser objektas, kuriam yra paduodamas aprašymas.
+parser = argparse.ArgumentParser(
+    description="Programa, suskaičiuojanti ir grąžinanti SHA512/256 maišos reikšmę."
+)
 
-#Pridedami komandinės eilutės argumentai su pavadinimais ir aprašymais.
-parser.add_argument('--filename-input', '-fi', metavar='[failo pavadinimas]', type=str, required=True,
-                    help='Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas')
-parser.add_argument('--filename-output', '-fo', metavar='[failo pavadinimas]', type=str,
-                    help='Failo, kuriame bus saugoma suskaičiuota maišos reikšmė, pavadinimas')
-parser.add_argument('--return-to-cli', '-cli', action="store_true",
-                    help='Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje.')
-parser.add_argument('--print-message', '-pm', action="store_true",
-                    help='Nustatymas, kuris nurodo, ar atvaizduoti suformatuotą failo turinį bitais komandinėje eilutėje.')
+# Pridedami komandinės eilutės argumentai su pavadinimais ir aprašymais.
+parser.add_argument(
+    "--input-filename",
+    "-if",
+    metavar="[failo pavadinimas]",
+    type=str,
+    required=True,
+    help="Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas",
+)
+parser.add_argument(
+    "--output-filename",
+    "-of",
+    metavar="[failo pavadinimas]",
+    type=str,
+    help="Failo, kuriame bus saugoma suskaičiuota maišos reikšmė, pavadinimas",
+)
+parser.add_argument(
+    "--output-cli",
+    "-oc",
+    action="store_true",
+    help="Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje.",
+)
+parser.add_argument(
+    "--print-message",
+    "-pm",
+    action="store_true",
+    help="Nustatymas, kuris nurodo, ar atvaizduoti suformatuotą failo turinį bitais komandinėje eilutėje.",
+)
 
 args = parser.parse_args()
 
+
 class Sha512_256:
-    def __init__(self, input):
-        self.message = input.copy()
+    def __init__(self):
+        self.message = self.read_from_file().copy()
         self.message_length = len(self.message) * 8
         self.chunk_size = 1024
         self.threshold = 895
@@ -125,7 +148,7 @@ class Sha512_256:
 
     def print_result(self, digested_message):
         def print_pipe_symbols():
-             return print(f'║{" " * 68}║')
+            return print(f'║{" " * 68}║')
 
         print(f"\n╔{'═' * 68}╗")
         print_pipe_symbols()
@@ -140,8 +163,13 @@ class Sha512_256:
 
         for i in range(len(compressed_chunks)):
             digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
-        if (args.return_to_cli or args.filename_output is None):
-          return self.print_result(digested_message[:32])
+
+        if args.output_filename:
+            with open(args.output_filename, 'w') as file:
+                file.write(digested_message[:32].hex())
+
+        if args.output_cli or args.output_filename is None:
+            return self.print_result(digested_message[:32])
 
     def compress(self, working_variables, message_schedule):
         for i in range(80):
@@ -197,7 +225,7 @@ class Sha512_256:
         compressed_chunks = working_variables.copy()
 
         for chunk in chunks:
-            message_schedule = self.build_message_schedule(chunk)
+            message_schedule = self.create_message_schedule(chunk)
 
             for i in range(len(working_variables)):
                 working_variables[i] = compressed_chunks[i]
@@ -210,13 +238,14 @@ class Sha512_256:
                 )
 
         return self.digest(compressed_chunks)
-        
-    def build_message_schedule(self, chunk):
+
+    def create_message_schedule(self, chunk):
         message_schedule = [0] * 80
+
         for i in range(16):
-                message_schedule[i] = int.from_bytes(
-                    chunk[8 * i : 8 * (i + 1)], byteorder="big"
-                )
+            message_schedule[i] = int.from_bytes(
+                chunk[8 * i : 8 * (i + 1)], byteorder="big"
+            )
 
         for i in range(16, 80):
             sigma_0 = (
@@ -230,11 +259,9 @@ class Sha512_256:
                 ^ message_schedule[i - 2] >> 6
             )
             message_schedule[i] = self.truncate_to_64_bits(
-                message_schedule[i - 16]
-                + sigma_0
-                + message_schedule[i - 7]
-                + sigma_1
+                message_schedule[i - 16] + sigma_0 + message_schedule[i - 7] + sigma_1
             )
+
         return message_schedule
 
     def split_into_chunks(self):
@@ -246,8 +273,8 @@ class Sha512_256:
 
         for i in range(chunk_count):
             chunks.append(self.message[128 * i : 128 * (i + 1)])
-        if (args.print_message):
-          self.print_message_in_binary(chunk_count)
+        if args.print_message:
+            self.print_message_in_binary(chunk_count)
 
         return chunks
 
@@ -273,12 +300,22 @@ class Sha512_256:
         print(f"\nPadded message length in bytes: {self.message_length // 8}\n")
         print(f"Amount of chunks: {chunk_count}")
 
+    def read_from_file(self):
+      input = bytearray()
+      try:
+        with open(args.input_filename, "rb") as file:
+          input.extend(file.read())
+      except FileNotFoundError:
+          print(f"\nFailas {args.input_filename} nerastas.\n")
+          raise SystemExit(1)
+
+      return input
+
 
 def main():
-    with open(args.filename_input, "rb") as file:
-        input = bytearray(file.read())
-        sha_512_256 = Sha512_256(input)
-        sha_512_256.compute_hash()
+  sha_512_256 = Sha512_256()
+  sha_512_256.compute_hash()
+
 
 if __name__ == "__main__":
     main()
