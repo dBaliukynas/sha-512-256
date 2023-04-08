@@ -118,7 +118,7 @@ class Sha512_256:
 		return word & 0xFFFFFFFFFFFFFFFF
 
 	def rotate_to_right(self, word, bits_to_rotate):
-		"""Pasuka paduotą word reikšmę į kairę bits_to_rotate kartų.
+		"""Pasuka (circular-shift) paduotą word reikšmę į kairę bits_to_rotate kartų.
     
       Parametrai
       ----------
@@ -142,11 +142,16 @@ class Sha512_256:
       Parametrai
       ----------
       digested_message : bytearray
-          Maišos reikšmė baitų masyve.
+          Maišos reikšmė, sujungta iš atskirų žinutės dalių ir sutrumpinta iki 256 bitų.
     """
 
 		def print_pipe_symbols():
 			"""Atspausdina strypų (║) simbolius komandinėje eilutėje.
+				 Grąžina
+      	 -------
+      	 NoneType
+         		 print() metodo reikšmė.
+
       """
 			return print(f'║{" " * 68}║')
 
@@ -171,7 +176,7 @@ class Sha512_256:
 			print(digested_message)
 
 	def digest(self, compressed_chunks):
-		"""Apjungia kiekvieną compressed_chunks elementą ir suformuoja galutinę maišos reikšmę.
+		"""Apjungia kiekvieną compressed_chunks elementą ir taip suformuoja galutinę maišos reikšmę.
     
     Parametrai
 		----------
@@ -192,6 +197,14 @@ class Sha512_256:
 		return digested_message[:32]
 
 	def compute_hash(self):
+		"""Suskaičiuoja maišos reikšmę.
+    
+		Grąžina
+		-------
+		bytearray
+				Maišos reikšmė, sujungta iš atskirų žinutės dalių ir sutrumpinta iki 256 bitų.
+		"""
+
 		chunks = self.split_into_chunks()
 
 		working_variables = [0] * 8
@@ -217,6 +230,23 @@ class Sha512_256:
 		return self.digest(compressed_chunks)
 
 	def compress(self, working_variables, message_schedule):
+		"""Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina 
+			 kintamųjų (working_variables) reikšmes taip, kad net ir menkiausias
+			 žinutės pokytis smarkiai pakeistų maišos reikšmę.
+    
+    Parametrai
+		----------
+		working_variables : list of int
+				Kintamųjų sąrašas, kurio reikšmės naudojamos maišos reikšmei suskaičiuoti.
+		message_schedule : list of int
+				Iš žinutės dalių (chunks) sukurtas žodžių (words) sąrašas.
+
+		Grąžina
+		-------
+		working_variables: list of int
+				Kintamųjų sąrašas, kurio reikšmės naudojamos maišos reikšmei suskaičiuoti.
+		"""
+
 		for i in range(80):
 			sum_1 = (
 					self.rotate_to_right(working_variables[4], 14)
@@ -261,8 +291,22 @@ class Sha512_256:
 
 
 	def create_message_schedule(self, chunk):
-		message_schedule = [0] * 80
+		"""Sukuria žinutės tvarkaraštį (message_schedule) -- padalina žinutės dalį (chunk) į 
+			 64 bitų dydžio žodžius (words) ir atnaujina žinutės tvarkaraštį, atliekant įvairias
+			 logines ir aritmetines operacijas.
+    
+    Parametrai
+		----------
+		chunk : bytearray
+				1024 bitų dydžio žinutės dalis.
 
+		Grąžina
+		-------
+		message_schedule : list of int
+				Iš žinutės dalių (chunks) sukurtas žodžių (words) sąrašas.
+		"""
+
+		message_schedule = [0] * 80
 		for i in range(16):
 			message_schedule[i] = int.from_bytes(
 					chunk[8 * i : 8 * (i + 1)], byteorder="big"
@@ -286,6 +330,14 @@ class Sha512_256:
 		return message_schedule
 
 	def split_into_chunks(self):
+		"""Padalina žinutę į 1024 bitų dydžio dalis (chunks).
+
+		Grąžina
+		-------
+		chunks : list of bytearray
+				1024 bitų dydžio žinutės dalių sąrašas.
+		"""
+
 		self.message = self.pre_process()
 		self.message_length = len(self.message) * 8
 
@@ -297,10 +349,19 @@ class Sha512_256:
 
 		if self.options.print_message:
 			self.print_message_in_binary(chunk_count)
-
 		return chunks
 
 	def pre_process(self):
+		"""Modifikuoja (suformatuoja) žinutę -- prideda bitą "1" prie žinutės pabaigos,
+		   prideda "0" bitų iki kol žinutė pasiekia 896 bitų ilgį. Galiausiai, likusieji
+			 128 bitai reprezentuoja žinutės ilgį.
+
+		Grąžina
+		-------
+		self.message : bytearray
+				Modifikuota (suformatuota) žinutė.
+		"""
+
 		self.message.extend((1 << 7).to_bytes(1, byteorder="little"))
 		padding_zeroes_length = (
 				(self.threshold - self.message_length) % self.chunk_size // 8
@@ -311,6 +372,14 @@ class Sha512_256:
 		return self.message
 
 	def print_message_in_binary(self, chunk_count=None):
+		"""Spausdina žinutę dvejetainiu formatu komandinėje eilutėje.
+
+		Parametrai
+		-------
+		chunk_count : int
+				Žinutės dalių (chunks) kiekis.
+		"""
+
 		for (i, byte) in enumerate(self.message):
 			if i % 128 == 0:
 				print("")
@@ -324,16 +393,31 @@ class Sha512_256:
 		print(f"Amount of chunks: {chunk_count}")
 
 	def print_error_message(self, error_message):
+		"""Spausdina klaidos žinutę komandinėje eilutėje.
+
+		Parametrai
+		-------
+		error_message : str
+				Klaidos žinutė.
+		"""
+
 		print('\x1b[1;41m' + f"\n{error_message}" + '\x1b[m\n')
 
 	def write_to_file(self, digested_message):
-		digested_message = digested_message.hex()
+		"""Rašo galutinę maišos reikšmę į failą.
+
+		Parametrai
+		-------
+		digested_message : bytearray
+				Maišos reikšmė, sujungta iš atskirų žinutės dalių ir sutrumpinta iki 256 bitų.
+		"""
+
 		try:
 			with open(self.options.output_filename, 'w') as file:
 				if self.options.upper_case:
-					file.write(digested_message.upper())
+					file.write(digested_message.hex().upper())
 				else:
-					file.write(digested_message)
+					file.write(digested_message.hex())
 		except IsADirectoryError:
 			self.print_error_message(f"Failas {self.options.output_filename} yra katalogas.")
 			raise SystemExit(1)
@@ -342,6 +426,14 @@ class Sha512_256:
 			raise SystemExit(1)
 
 	def read_from_file(self):
+		"""Skaito duomenis iš failo dvejetainiu formatu.
+
+		Grąžina
+		-------
+		input : bytearray
+				Failo turinys baitų masyve.
+		"""
+
 		input = bytearray()
 		
 		try:
@@ -360,52 +452,62 @@ class Sha512_256:
 		return input
 
 def parse_arguments():
+	"""Sukuria ir apdoroja komandinės eilutės argumentus.
+
+	Grąžina
+	-------
+	argparse.Namespace
+			Komandinės eilutės argumentų reikšmės.
+	"""
+
 	parser = argparse.ArgumentParser(
 			description="Programa, suskaičiuojanti ir grąžinanti SHA512/256 maišos reikšmę."
 	)
 	parser.add_argument(
-			"--input-filename",
 			"-if",
+			"--input-filename",
 			metavar="[failo pavadinimas]",
 			type=str,
 			required=True,
 			help="Failo, iš kurio turinio bus suskaičiuojama maišos reikšmė, pavadinimas",
 	)
 	parser.add_argument(
-			"--output-filename",
 			"-of",
+			"--output-filename",
 			metavar="[failo pavadinimas]",
 			type=str,
 			help="Failo, kuriame bus saugoma suskaičiuota maišos reikšmė, pavadinimas",
 	)
 	parser.add_argument(
-			"--output-cli",
 			"-oc",
+			"--output-cli",
 			action="store_true",
 			help="Nustatymas, kuris nurodo, ar maišos reikšmė bus atvaizduojama komandinėje eilutėje, kai jau yra nurodytas išvesties failas.",
 	)
 	parser.add_argument(
-			"--print-message",
 			"-pm",
+			"--print-message",
 			action="store_true",
 			help="Nustatymas, kuris nurodo, ar atvaizduoti suformatuotą failo turinį bitais komandinėje eilutėje.",
 	)
 	parser.add_argument(
-			"--upper-case",
 			"-uc",
+			"--upper-case",
 			action="store_true",
 			help="Nustatymas, kuris nurodo, ar atvaizduoti ir saugoti maišos reikšmę didžiosomis raidėmis.",
 	)
 	parser.add_argument(
-		"--simplify",
 		"-s",
+		"--simplify",
 		action="store_true",
 		help="Nustatymas, kuris nurodo, ar atvaizduoti maišos reikšmę komandinėje eilutėje kaip paprastą eilutę (string).",
 	)
-	
+
 	return parser.parse_args()
 
 def main():
+	"""Apskaičiuoja maišos reikšmę ir išveda rezultatą į ekraną ir/arba failą.
+	"""
 	args = parse_arguments()
 
 	sha_512_256 = Sha512_256(args)
