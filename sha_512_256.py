@@ -203,12 +203,12 @@ class Sha512_256:
         else:
             print(digested_message)
 
-    def digest(self, hash_values):
-        """Apjungia kiekvieną hash_values elementą ir taip suformuoja galutinę maišos reikšmę.
+    def digest(self, final_hash_values):
+        """Apjungia kiekvieną final_hash_values elementą ir taip suformuoja galutinę maišos reikšmę.
 
         Parametrai
         ----------
-        hash_values : list of int
+        final_hash_values : list of int
             8 galutinės maišos reikšmės dalių sąrašas.
 
         Grąžina
@@ -219,8 +219,8 @@ class Sha512_256:
 
         digested_message = bytearray()
 
-        for i in range(len(hash_values)):
-            digested_message.extend(hash_values[i].to_bytes(8, byteorder="big"))
+        for i in range(len(final_hash_values)):
+            digested_message.extend(final_hash_values[i].to_bytes(8, byteorder="big"))
 
         return digested_message[:32]
 
@@ -232,9 +232,9 @@ class Sha512_256:
         bytearray
             Maišos reikšmė, sujungta iš atskirų maišos reikšmės dalių ir sutrumpinta iki 256 bitų.
         """
-        return self.digest(self.create_hash_values(self.split_into_chunks()))
+        return self.digest(self.create_final_hash_values(self.split_into_chunks()))
 
-    def create_hash_values(self, chunks):
+    def create_final_hash_values(self, chunks):
         """Sukuria 8 galutinės maišos reikšmės dalių sąrašą.
 
         Parametrai
@@ -244,7 +244,7 @@ class Sha512_256:
 
         Grąžina
         -------
-        hash_values : list of int
+        final_hash_values : list of int
             8 galutinės maišos reikšmės dalių sąrašas.
         """
 
@@ -254,22 +254,22 @@ class Sha512_256:
         for (i, initial_hash_value) in enumerate(self.initial_sha_512_256_hash_values):
             working_variables[i] = initial_hash_value
 
-        hash_values = working_variables.copy()
+        final_hash_values = working_variables.copy()
 
         for chunk in chunks:
             message_schedule = self.create_message_schedule(chunk)
 
             for i in range(working_variables_length):
-                working_variables[i] = hash_values[i]
+                working_variables[i] = final_hash_values[i]
 
             working_variables = self.compress(working_variables, message_schedule)
 
             for i in range(working_variables_length):
-                hash_values[i] = self.truncate_to_64_bits(
-                    hash_values[i] + working_variables[i]
+                final_hash_values[i] = self.truncate_to_64_bits(
+                    final_hash_values[i] + working_variables[i]
                 )
 
-        return hash_values
+        return final_hash_values
 
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
