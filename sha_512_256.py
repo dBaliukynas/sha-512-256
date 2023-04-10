@@ -170,7 +170,7 @@ class Sha512_256:
       Parametrai
       ----------
       digested_message : bytearray
-          Maišos reikšmė, sujungta iš atskirų suspaustų žinutės dalių ir sutrumpinta iki 256 bitų.
+          Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
     """
 
 		def print_pipe_symbols():
@@ -204,17 +204,17 @@ class Sha512_256:
 			print(digested_message)
 
 	def digest(self, compressed_chunks):
-		"""Apjungia kiekvieną suspaustą compressed_chunks elementą ir taip suformuoja galutinę maišos reikšmę.
+		"""Apjungia kiekvieną suglaudintą compressed_chunks elementą ir taip suformuoja galutinę maišos reikšmę.
     
     Parametrai
 		----------
 		compressed_chunks : list of int
-				Suspaustų žinutės dalių sąrašas.
+				Suglaudintų žinutės dalių sąrašas.
 
 		Grąžina
 		-------
 		digested_message[:32]: bytearray
-				Maišos reikšmė, sujungta iš atskirų suspaustų žinutės dalių ir sutrumpinta iki 256 bitų.
+				Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
 		"""
 
 		digested_message = bytearray()
@@ -230,7 +230,7 @@ class Sha512_256:
 		Grąžina
 		-------
 		bytearray
-				Maišos reikšmė, sujungta iš atskirų suspaustų žinutės dalių ir sutrumpinta iki 256 bitų.
+				Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
 		"""
 
 		chunks = self.split_into_chunks()
@@ -437,7 +437,7 @@ class Sha512_256:
 		Parametrai
 		-------
 		digested_message : bytearray
-				Maišos reikšmė, sujungta iš atskirų suspaustų žinutės dalių ir sutrumpinta iki 256 bitų.
+				Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
 		"""
 
 		try:
