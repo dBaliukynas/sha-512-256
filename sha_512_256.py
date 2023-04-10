@@ -269,7 +269,7 @@ class Sha512_256:
                     compressed_chunks[i] + working_variables[i]
                 )
 
-        return compressed_chunks        
+        return compressed_chunks
 
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
