@@ -203,13 +203,13 @@ class Sha512_256:
         else:
             print(digested_message)
 
-    def digest(self, compressed_chunks):
-        """Apjungia kiekvieną suglaudintą compressed_chunks elementą ir taip suformuoja galutinę maišos reikšmę.
+    def digest(self, hash_values):
+        """Apjungia kiekvieną suglaudintą hash_values elementą ir taip suformuoja galutinę maišos reikšmę.
 
         Parametrai
         ----------
-        compressed_chunks : list of int
-            Suglaudintų žinutės dalių sąrašas.
+        hash_values : list of int
+            8 galutinės maišos reikšmės dalių sąrašas.
 
         Grąžina
         -------
@@ -219,8 +219,8 @@ class Sha512_256:
 
         digested_message = bytearray()
 
-        for i in range(len(compressed_chunks)):
-            digested_message.extend(compressed_chunks[i].to_bytes(8, byteorder="big"))
+        for i in range(len(hash_values)):
+            digested_message.extend(hash_values[i].to_bytes(8, byteorder="big"))
 
         return digested_message[:32]
 
@@ -232,10 +232,10 @@ class Sha512_256:
         bytearray
             Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
         """
-        return self.digest(self.create_compressed_chunks(self.split_into_chunks()))
+        return self.digest(self.create_hash_values(self.split_into_chunks()))
 
-    def create_compressed_chunks(self, chunks):
-        """Sukuria suglaudintų žinutės dalių (chunks) sąrašą.
+    def create_hash_values(self, chunks):
+        """Sukuria 8 galutinės maišos reikšmės dalių sąrašą.
 
         Parametrai
         ----------
@@ -244,8 +244,8 @@ class Sha512_256:
 
         Grąžina
         -------
-        compressed_chunks : list of int
-            Suglaudintų žinutės dalių sąrašas
+        hash_values : list of int
+            8 galutinės maišos reikšmės dalių sąrašas.
         """
 
         working_variables = [0] * 8
@@ -254,22 +254,22 @@ class Sha512_256:
         for (i, initial_hash_value) in enumerate(self.initial_sha_512_256_hash_values):
             working_variables[i] = initial_hash_value
 
-        compressed_chunks = working_variables.copy()
+        hash_values = working_variables.copy()
 
         for chunk in chunks:
             message_schedule = self.create_message_schedule(chunk)
 
             for i in range(working_variables_length):
-                working_variables[i] = compressed_chunks[i]
+                working_variables[i] = hash_values[i]
 
             working_variables = self.compress(working_variables, message_schedule)
 
             for i in range(working_variables_length):
-                compressed_chunks[i] = self.truncate_to_64_bits(
-                    compressed_chunks[i] + working_variables[i]
+                hash_values[i] = self.truncate_to_64_bits(
+                    hash_values[i] + working_variables[i]
                 )
 
-        return compressed_chunks
+        return hash_values
 
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
