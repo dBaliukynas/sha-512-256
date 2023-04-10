@@ -232,10 +232,24 @@ class Sha512_256:
         bytearray
             Maišos reikšmė, sujungta iš atskirų suglaudintų žinutės dalių ir sutrumpinta iki 256 bitų.
         """
+        return self.digest(self.create_compressed_chunks(self.split_into_chunks()))
 
-        chunks = self.split_into_chunks()
+    def create_compressed_chunks(self, chunks):
+        """Sukuria suglaudintų žinutės dalių (chunks) sąrašą.
+
+        Parametrai
+        ----------
+        chunks : list of bytearray
+            1024 bitų dydžio žinutės dalių sąrašas.
+
+        Grąžina
+        -------
+        compressed_chunks : list of int
+            Suglaudintų žinutės dalių sąrašas
+        """
 
         working_variables = [0] * 8
+        working_variables_length = len(working_variables)
 
         for (i, initial_hash_value) in enumerate(self.initial_sha_512_256_hash_values):
             working_variables[i] = initial_hash_value
@@ -245,17 +259,17 @@ class Sha512_256:
         for chunk in chunks:
             message_schedule = self.create_message_schedule(chunk)
 
-            for i in range(len(working_variables)):
+            for i in range(working_variables_length):
                 working_variables[i] = compressed_chunks[i]
 
             working_variables = self.compress(working_variables, message_schedule)
 
-            for i in range(len(working_variables)):
+            for i in range(working_variables_length):
                 compressed_chunks[i] = self.truncate_to_64_bits(
                     compressed_chunks[i] + working_variables[i]
                 )
 
-        return self.digest(compressed_chunks)
+        return compressed_chunks        
 
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
