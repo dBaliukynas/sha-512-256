@@ -259,8 +259,8 @@ class Sha512_256:
 
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
-                             kintamųjų (working_variables) reikšmes taip, kad net ir menkiausias
-                             žinutės pokytis smarkiai pakeistų maišos reikšmę.
+           kintamųjų (working_variables) reikšmes taip, kad net ir menkiausias
+           žinutės pokytis smarkiai pakeistų maišos reikšmę.
 
         Parametrai
         ----------
@@ -381,7 +381,7 @@ class Sha512_256:
     def pre_process(self):
         """Modifikuoja (suformatuoja) žinutę -- prideda bitą "1" prie žinutės pabaigos,
            prideda "0" bitų iki kol žinutė pasiekia 896 bitų ilgį. Galiausiai, likusieji
-                 128 bitai reprezentuoja žinutės ilgį.
+           128 bitai reprezentuoja žinutės ilgį.
 
         Grąžina
         -------
@@ -548,10 +548,12 @@ def main():
 
     sha_512_256 = Sha512_256(args)
 
+    hash = sha_512_256.compute_hash()
+
     if args.output_filename:
-        sha_512_256.write_to_file(sha_512_256.compute_hash())
+        sha_512_256.write_to_file(hash)
     if args.output_cli or args.output_filename is None:
-        sha_512_256.print_result(sha_512_256.compute_hash())
+        sha_512_256.print_result(hash)
 
 
 if __name__ == "__main__":
