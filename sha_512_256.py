@@ -165,44 +165,16 @@ class Sha512_256:
             ((word >> bits_to_rotate) | (word << 64 - bits_to_rotate))
         )
 
-    def print_result(self, digested_message):
-        """Atspausdina maišos reikšmę komandinėje eilutėje.
+    def compute_hash(self):
+        """Suskaičiuoja maišos reikšmę.
 
-        Parametrai
-        ----------
-        digested_message : bytearray
+        Grąžina
+        -------
+        bytearray
             Maišos reikšmė, sujungta iš atskirų maišos reikšmės dalių ir sutrumpinta iki 256 bitų.
         """
-
-        def print_pipe_symbols():
-            """Atspausdina strypų (║) simbolius komandinėje eilutėje.
-            Grąžina
-            -------
-            NoneType
-                print() metodo reikšmė.
-
-            """
-            return print(f'║{" " * 68}║')
-
-        if self.options.upper_case:
-            digested_message = digested_message.hex().upper()
-        else:
-            digested_message = digested_message.hex()
-
-        if not self.options.simplify:
-            print(f"\n╔{'═' * 68}╗")
-            print_pipe_symbols()
-            print(f"║ SHA512/256 Hash result:{' ' * 44}║")
-            print_pipe_symbols()
-
-            print("║ " + digested_message + "   ║")
-
-            print_pipe_symbols()
-            print(f"╚{'═' * 68}╝\n")
-
-        else:
-            print(digested_message)
-
+        return self.digest(self.create_final_hash_values(self.split_into_chunks()))
+    
     def digest(self, final_hash_values):
         """Apjungia kiekvieną final_hash_values elementą ir taip suformuoja galutinę maišos reikšmę.
 
@@ -223,17 +195,7 @@ class Sha512_256:
             digested_message.extend(final_hash_values[i].to_bytes(8, byteorder="big"))
 
         return digested_message[:32]
-
-    def compute_hash(self):
-        """Suskaičiuoja maišos reikšmę.
-
-        Grąžina
-        -------
-        bytearray
-            Maišos reikšmė, sujungta iš atskirų maišos reikšmės dalių ir sutrumpinta iki 256 bitų.
-        """
-        return self.digest(self.create_final_hash_values(self.split_into_chunks()))
-
+    
     def create_final_hash_values(self, chunks):
         """Sukuria 8 galutinės maišos reikšmės dalių sąrašą.
 
@@ -270,7 +232,88 @@ class Sha512_256:
                 )
 
         return final_hash_values
+    
+    def split_into_chunks(self):
+        """Padalina žinutę į 1024 bitų dydžio dalis (chunks).
 
+        Grąžina
+        -------
+        chunks : list of bytearray
+            1024 bitų dydžio žinutės dalių sąrašas.
+        """
+
+        self.message = self.pre_process()
+        self.message_length = len(self.message) * 8
+
+        chunk_count = self.message_length // self.chunk_size
+        chunks = []
+
+        for i in range(chunk_count):
+            chunks.append(self.message[128 * i : 128 * (i + 1)])
+
+        if self.options.print_message:
+            self.print_message_in_binary(chunk_count)
+        return chunks
+    
+    def pre_process(self):
+        """Modifikuoja (suformatuoja) žinutę -- prideda bitą "1" prie žinutės pabaigos,
+           prideda "0" bitų iki kol žinutė pasiekia 896 bitų ilgį. Galiausiai, likusieji
+           128 bitai reprezentuoja žinutės ilgį.
+
+        Grąžina
+        -------
+        message : bytearray
+            Modifikuota (suformatuota) žinutė.
+        """
+
+        self.message.extend((1 << 7).to_bytes(1, byteorder="little"))
+        padding_zeroes_length = (
+            (self.threshold - self.message_length) % self.chunk_size // 8
+        )
+        self.message.extend(bytearray(padding_zeroes_length))
+        self.message.extend((self.message_length).to_bytes(16, byteorder="big"))
+
+        return self.message
+    
+    def create_message_schedule(self, chunk):
+        """Sukuria žinutės tvarkaraštį (message_schedule) -- padalina žinutės dalį (chunk) į
+           64 bitų dydžio žodžius (words) ir atnaujina žinutės tvarkaraštį, atliekant įvairias
+           logines ir aritmetines operacijas.
+
+        Parametrai
+        ----------
+        chunk : bytearray
+            1024 bitų dydžio žinutės dalis.
+
+        Grąžina
+        -------
+        message_schedule : list of int
+            Iš žinutės dalių (chunks) sukurtas žodžių (words) sąrašas.
+        """
+
+        message_schedule = [0] * 80
+        for i in range(16):
+            message_schedule[i] = int.from_bytes(
+                chunk[8 * i : 8 * (i + 1)], byteorder="big"
+            )
+
+        for i in range(16, 80):
+            sigma_0 = (
+                self.rotate_to_right(message_schedule[i - 15], 1)
+                ^ self.rotate_to_right(message_schedule[i - 15], 8)
+                ^ message_schedule[i - 15] >> 7
+            )
+            sigma_1 = (
+                self.rotate_to_right(message_schedule[i - 2], 19)
+                ^ self.rotate_to_right(message_schedule[i - 2], 61)
+                ^ message_schedule[i - 2] >> 6
+            )
+            message_schedule[i] = self.truncate_to_64_bits(
+                message_schedule[i - 16] + sigma_0 + message_schedule[i - 7] + sigma_1
+            )
+
+        return message_schedule
+    
     def compress(self, working_variables, message_schedule):
         """Atlieka seriją loginių ir aritmetinių operacijų ir atnaujina
            kintamųjų (working_variables) reikšmes taip, kad net ir menkiausias
@@ -331,86 +374,43 @@ class Sha512_256:
 
         return working_variables
 
-    def create_message_schedule(self, chunk):
-        """Sukuria žinutės tvarkaraštį (message_schedule) -- padalina žinutės dalį (chunk) į
-           64 bitų dydžio žodžius (words) ir atnaujina žinutės tvarkaraštį, atliekant įvairias
-           logines ir aritmetines operacijas.
+    def print_result(self, digested_message):
+        """Atspausdina maišos reikšmę komandinėje eilutėje.
 
         Parametrai
         ----------
-        chunk : bytearray
-            1024 bitų dydžio žinutės dalis.
-
-        Grąžina
-        -------
-        message_schedule : list of int
-            Iš žinutės dalių (chunks) sukurtas žodžių (words) sąrašas.
+        digested_message : bytearray
+            Maišos reikšmė, sujungta iš atskirų maišos reikšmės dalių ir sutrumpinta iki 256 bitų.
         """
 
-        message_schedule = [0] * 80
-        for i in range(16):
-            message_schedule[i] = int.from_bytes(
-                chunk[8 * i : 8 * (i + 1)], byteorder="big"
-            )
+        def print_pipe_symbols():
+            """Atspausdina strypų (║) simbolius komandinėje eilutėje.
+            Grąžina
+            -------
+            NoneType
+                print() metodo reikšmė.
 
-        for i in range(16, 80):
-            sigma_0 = (
-                self.rotate_to_right(message_schedule[i - 15], 1)
-                ^ self.rotate_to_right(message_schedule[i - 15], 8)
-                ^ message_schedule[i - 15] >> 7
-            )
-            sigma_1 = (
-                self.rotate_to_right(message_schedule[i - 2], 19)
-                ^ self.rotate_to_right(message_schedule[i - 2], 61)
-                ^ message_schedule[i - 2] >> 6
-            )
-            message_schedule[i] = self.truncate_to_64_bits(
-                message_schedule[i - 16] + sigma_0 + message_schedule[i - 7] + sigma_1
-            )
+            """
+            return print(f'║{" " * 68}║')
 
-        return message_schedule
+        if self.options.upper_case:
+            digested_message = digested_message.hex().upper()
+        else:
+            digested_message = digested_message.hex()
 
-    def split_into_chunks(self):
-        """Padalina žinutę į 1024 bitų dydžio dalis (chunks).
+        if not self.options.simplify:
+            print(f"\n╔{'═' * 68}╗")
+            print_pipe_symbols()
+            print(f"║ SHA512/256 Hash result:{' ' * 44}║")
+            print_pipe_symbols()
 
-        Grąžina
-        -------
-        chunks : list of bytearray
-            1024 bitų dydžio žinutės dalių sąrašas.
-        """
+            print("║ " + digested_message + "   ║")
 
-        self.message = self.pre_process()
-        self.message_length = len(self.message) * 8
+            print_pipe_symbols()
+            print(f"╚{'═' * 68}╝\n")
 
-        chunk_count = self.message_length // self.chunk_size
-        chunks = []
-
-        for i in range(chunk_count):
-            chunks.append(self.message[128 * i : 128 * (i + 1)])
-
-        if self.options.print_message:
-            self.print_message_in_binary(chunk_count)
-        return chunks
-
-    def pre_process(self):
-        """Modifikuoja (suformatuoja) žinutę -- prideda bitą "1" prie žinutės pabaigos,
-           prideda "0" bitų iki kol žinutė pasiekia 896 bitų ilgį. Galiausiai, likusieji
-           128 bitai reprezentuoja žinutės ilgį.
-
-        Grąžina
-        -------
-        message : bytearray
-            Modifikuota (suformatuota) žinutė.
-        """
-
-        self.message.extend((1 << 7).to_bytes(1, byteorder="little"))
-        padding_zeroes_length = (
-            (self.threshold - self.message_length) % self.chunk_size // 8
-        )
-        self.message.extend(bytearray(padding_zeroes_length))
-        self.message.extend((self.message_length).to_bytes(16, byteorder="big"))
-
-        return self.message
+        else:
+            print(digested_message)
 
     def print_message_in_binary(self, chunk_count=None):
         """Spausdina žinutę dvejetainiu formatu komandinėje eilutėje.
@@ -431,7 +431,7 @@ class Sha512_256:
 
         print(f"\nPadded message length in bits: {self.message_length}\n")
         print(f"\nPadded message length in bytes: {self.message_length // 8}\n")
-        print(f"Amount of chunks: {chunk_count}")
+        print(f"Amount of chunks: {chunk_count}\n")
 
     def print_error_message(self, error_message):
         """Spausdina klaidos žinutę komandinėje eilutėje.
